@@ -2,8 +2,9 @@
 // Created by robin on 8/9/15.
 //
 
-#include <iostream>
 #include "Result.h"
+#include <errno.h>
+#include <string.h>
 
 template<class T>
 Result<T>::Result()
@@ -11,21 +12,40 @@ Result<T>::Result()
 }
 
 template<class T>
-Result<T>::Result(const T &data)
-        : _data(data)
+const Result<T> Result<T>::ok(const T& data)
 {
+    Result<T> r;
+    r._success = true;
+    r._data = data;
+    return r;
 }
 
 template<class T>
-Result<T>::~Result()
+const Result<T> Result<T>::strerror()
 {
+    Result<T> r;
+    r._success = false;
+    r._error = ::strerror(errno);
+    return r;
 }
 
 template<class T>
-Result<T> &Result<T>::ok(const T &data)
+const Result<T> Result<T>::error(const std::string& error)
 {
-    _data = data;
-    return *this;
+    Result<T> r;
+    r._success = false;
+    r._error = error;
+    return r;
+}
+
+template<class T>
+template<class U>
+const Result<T> Result<T>::error(const Result<U>& other)
+{
+    Result<T> r;
+    r._success = false;
+    r.error(other.getError());
+    return r;
 }
 
 template<class T>
@@ -35,22 +55,9 @@ T &Result<T>::getData()
 }
 
 template<class T>
-bool Result<T>::isSuccess() const
+const bool Result<T>::isSuccess() const
 {
-    return _error.empty();
-}
-
-template<class T>
-const std::vector<std::string>& Result<T>::getWarnings() const
-{
-    return _warnings;
-}
-
-template<class T>
-Result<T>& Result<T>::addWarning(const std::string &warning)
-{
-    _warnings.push_back(warning);
-    return *this;
+    return _success;
 }
 
 template<class T>
@@ -66,24 +73,26 @@ Result<T>::operator bool() const
 }
 
 template<class T>
-Result<T> &Result<T>::error(const std::string &error)
-{
-    _error = error;
-    return *this;
-}
-
-template<class T>
 const std::string &Result<T>::getError() const
 {
     return _error;
 }
 
+template<class U>
+std::ostream& operator<<(std::ostream& os, const Result<U>& res)
+{
+    if (res._success) {
+        os << "Success";// << res._data;
+    }
+    else {
+        os << "Error: " << (res._error.empty() ? "Unknown error" : res._error);
+    }
+    return os;
+}
+
 template<class T>
 const Result<T>& Result<T>::print() const
 {
-    for (auto warning : _warnings)
-        std::cerr << "WARNING: " << warning << std::endl;
-    if (!isSuccess())
-        std::cerr << "ERROR: " << _error << std::endl;
+    (_success ? std::cout : std::cerr) << *this << std::endl;
     return *this;
 }
